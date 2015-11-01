@@ -13,6 +13,7 @@ class Application(object):
 		self.flask_app = Flask(__name__)
 		self.debug = debug
 		self._register_routes()
+		self._configure_cors()
 
 	#create a new celery object and configure it, this is standard code
 	def celery(self):
@@ -32,6 +33,13 @@ class Application(object):
 
 		return celery
 
+	def _configure_cors(self):
+		@self.flask_app.after_request
+		def add_cors(response):
+			response.headers.add('Access-Control-Allow-Origin', '*')
+			response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+			response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+			return response
 
 	def _register_routes(self):
 		#register the routes using blueprint

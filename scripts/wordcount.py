@@ -19,10 +19,13 @@ if __name__ == "__main__":
         print("Usage: wordcount <file>", file=sys.stderr)
         exit(-1)
     
+    #get task id from the arguments
     task_id = sys.argv[2]
-  
+    # get script (code) from the arguments
+    input_script = sys.argv[1]
+
     #update task status in ES
-    es.update(index="spark-jobs", doc_type="job", id=task_id, body={
+    es.update(index="spark-jobs", doc_type="wordcount-job", id=task_id, body={
         'doc': {
             'current': 1,
             'status': 'Spark job started...'
@@ -33,8 +36,8 @@ if __name__ == "__main__":
     #create spark context
     conf = SparkConf().setAppName('PythonWordCount')
     sc = SparkContext(conf=conf)
-  
-    lines = sc.textFile(sys.argv[1], 1)
+        
+    lines = sc.textFile(input_script, 1)
   
     counts = lines.flatMap(lambda x: x.split(' ')) \
                   .map(lambda x: (x, 1)) \
@@ -50,7 +53,7 @@ if __name__ == "__main__":
 
     out = json.dumps(output_dict)
     #update task status with result in ES
-    es.update(index='spark-jobs', doc_type='job', id=task_id, body={
+    es.update(index='spark-jobs', doc_type='wordcount-job', id=task_id, body={
         'doc':{
             'current': 100,
             'status': 'Spark job finished...',

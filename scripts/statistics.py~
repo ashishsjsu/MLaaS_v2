@@ -18,8 +18,8 @@ def configureSpark(app_name, master):
 	#Configure SPARK
 	conf = SparkConf().setAppName(app_name)
 	conf = conf.setMaster(master)
-	conf.set("fs.s3n.awsAccessKeyId", "AKIAIZSXB7PCY5AUNJPQ")
-	conf.set("fs.s3n.awsSecretAccessKey", "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")
+	conf.set("fs.s3n.awsAccessKeyId", "AccessID")
+	conf.set("fs.s3n.awsSecretAccessKey", "Secret")
 	spark_context = SparkContext(conf=conf)
 	return spark_context
 

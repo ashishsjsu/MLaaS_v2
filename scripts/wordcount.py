@@ -25,7 +25,7 @@ if __name__ == "__main__":
     input_script = sys.argv[1]
 
     #update task status in ES
-    es.update(index="spark-jobs", doc_type="wordcount-job", id=task_id, body={
+    es.update(index="spark-wordcount-task", doc_type="wordcount-job", id=task_id, body={
         'doc': {
             'current': 1,
             'status': 'Spark job started...'
@@ -53,7 +53,7 @@ if __name__ == "__main__":
 
     out = json.dumps(output_dict)
     #update task status with result in ES
-    es.update(index='spark-jobs', doc_type='wordcount-job', id=task_id, body={
+    es.update(index='spark-wordcount-task', doc_type='wordcount-job', id=task_id, body={
         'doc':{
             'current': 100,
             'status': 'Spark job finished...',

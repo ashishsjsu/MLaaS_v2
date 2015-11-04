@@ -4,7 +4,6 @@ import json
 from hashlib import sha1
 from datetime import datetime
 from elasticsearch import Elasticsearch
-
 import pickle
 import importlib
 
@@ -13,6 +12,30 @@ ES_HOST = {
 	"port": 9200
 }
 es = Elasticsearch(hosts = [ES_HOST])
+
+'''
+	This function creates an index in the elasticsearch for each type of Spark job when user submits the task via REST APIs
+'''
+def initiateElasticSearchIndex(indexname, doc, taskid):
+	print ""
+	#create a new elastic search index for this task
+	if not es.indices.exists(indexname):
+		print ("Creating '%s' index..." % (indexname))
+		res = es.indices.create(index=indexname, body={
+			"settings": {
+				'number_of_shards': 1,
+				'number_of_replicas': 0
+			}
+		})
+		print res
+
+	es.index(index=indexname, doc_type=doc, id=taskid, body={
+		'current': 0,
+		'total': 100,
+		'status': 'Spark job pending',
+		'start_time': datetime.utcnow()
+	})
+
 
 #create a blueprint object
 sparktask_page = Blueprint('sparktask_page', __name__)
@@ -30,7 +53,7 @@ def sayHello():
 @sparktask_page.route('/upload/sign_s3', methods=["GET"])
 def upload_file():
 
-	# get AWS parameters needed to sign the request
+	# get AWS parameters needed to sign the request. The varaibles are in .env file
 	AWS_ACCESS_KEY = os.environ.get('AWS_ACCESS_KEY')
 	AWS_SECRET_KEY = os.environ.get('AWS_SECRET_KEY')
 	S3_BUCKET = os.environ.get('S3_BUCKET')
@@ -73,26 +96,12 @@ def getStatistics():
 	task_meta = {task.id: "spark_data_statistics"}
 	pickle.dump(task_meta, open("taskmetadata/taskmeta.p", "wb"))
 
-	#create a new elastic search index for this task
-	if not es.indices.exists('spark-data-statistics'):
-		print ("Creating '%s' index..." % ('spark-data-statistics'))
-		res = es.indices.create(index='spark-data-statistics', body={
-			"settings": {
-				'number_of_shards': 1,
-				'number_of_replicas': 0
-			}
-		})
-		print res
+	#create a new elasticsearch index for the task
+	initiateElasticSearchIndex('spark-data-statistics', 'data-statistics-job', task.id)
 
-	es.index(index='spark-data-statistics', doc_type="data-statistics-job", id=task.id, body={
-		'current': 0,
-		'total': 100,
-		'status': 'Spark job pending',
-		'start_time': datetime.utcnow()
-	})
 
 	# return the task id and the url to track the status
-	return jsonify({'task_id': task.id}), 202, {'Location': url_for('.taskstatus', task_id=task.id)}
+	return jsonify({'task_id': task.id}), 202, {'Location': url_for('.statistics_taskstatus', task_id=task.id)}
 
 
 
@@ -104,27 +113,8 @@ def sparktask():
 	from tasks import spark_wordcount_task 	
 	task = spark_wordcount_task.apply_async()
 
-	#dump the task metadata in pickle object to use for status tracking
-	task_meta = {task.id: "spark_wordcount_task"}
-	pickle.dump(task_meta, open("taskmetadata/taskmeta.p", "wb"))
-
 	#create a new elasticsearch index for the task
-	if not es.indices.exists('spark-jobs'):
-		print ("Creating '%s' index..." % ('spark-jobs'))
-		res = es.indices.create(index='spark-jobs', body={
-			"settings": {
-				'number_of_shards': 1,
-				'number_of_replicas': 0
-			}
-		})
-		print (res)
-
-	es.index(index='spark-jobs', doc_type='wordcount-job', id=task.id, body={
-		'current': 0,
-		'total': 100,
-		'status': 'Spark job pending...',
-		'start_time': datetime.utcnow()
-	})
+	initiateElasticSearchIndex('spark-wordcount-task', 'wordcount-job', task.id)
 
 	return jsonify({'task_id': task.id}), 202, {'Location': url_for('.taskstatus', task_id=task.id)}
 
@@ -134,9 +124,8 @@ def sparktask():
 def taskstatus(task_id):
 
 	print "###############################"
-	print taskmeta[task_id]
 	from tasks import spark_wordcount_task
-	task = spark_job_task.AsyncResult(task_id)
+	task = spark_wordcount_task.AsyncResult(task_id)
 
 	if task.state == 'FAILURE':
 		#something went wrong in the job submitted
@@ -156,12 +145,11 @@ def taskstatus(task_id):
 
 
 @sparktask_page.route('/statistics/<task_id>/status', methods=["GET"])
-def taskstatus(task_id):
+def statistics_taskstatus(task_id):
 
 	print "###############################"
-	print taskmeta[task_id]
 	from tasks import spark_data_statistics
-	task = spark_job_task.AsyncResult(task_id)
+	task = spark_data_statistics.AsyncResult(task_id)
 
 	if task.state == 'FAILURE':
 		#something went wrong in the job submitted
@@ -176,5 +164,4 @@ def taskstatus(task_id):
 		es_task_info = es.get(index='spark-data-statistics', doc_type='data-statistics-job', id=task_id)
 		response = es_task_info['_source']
 		response['state'] = task.state
-
 	return jsonify(response)

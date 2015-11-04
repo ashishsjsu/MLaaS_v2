@@ -18,8 +18,8 @@ def configureSpark(app_name, master):
 	#Configure SPARK
 	conf = SparkConf().setAppName(app_name)
 	conf = conf.setMaster(master)
-	conf.set("fs.s3n.awsAccessKeyId", "AccessId")
-	conf.set("fs.s3n.awsSecretAccessKey", "secret")
+	#conf.set("fs.s3n.awsAccessKeyId", "")
+	#conf.set("fs.s3n.awsSecretAccessKey", "")
 	spark_context = SparkContext(conf=conf)
 	return spark_context
 
@@ -85,6 +85,7 @@ def deviceStatistics(device_fields):
 	}
 
 	out = json.dumps(result)
+	print (out)
 	#update task status with result in ES
 	es.update(index='spark-data-statistics', doc_type='data-statistics-job', id=task_id, body={
 		'doc':{
@@ -120,6 +121,8 @@ stackoverflow.com/questions/28029134/how-can-i-access-s3-s3n-from-a-local-hadoop
 1) Set credentials in hdfs-site.xml
 2) Copy hdfs-site.xml to spark/conf
 3) Use classpath with spark-submit
+4)  Copy the following jars from hadoop/share/hadoop/tools/lib to spark/lib
+	[hadoop-aws.jar, aws-java-sdk.jar, google-collections.jar, gauva-18.jar]
 '''
 
 

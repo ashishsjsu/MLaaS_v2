@@ -25,7 +25,6 @@ def spark_wordcount_task(self):
 @celery.task(bind=True)
 def spark_data_statistics(self, fileinput):
 	
-	print "**************************"
 	print fileinput
 	'''
 		self - the task itself
@@ -35,10 +34,26 @@ def spark_data_statistics(self, fileinput):
 	dataurl = fileinput
 	master_path = 'local[*]'
 	project_dir = "scripts/"
-	spark_code_path = project_dir + "statistics.py"
+	spark_code_path = project_dir + "genstats.py"
 
 	driver_classpath = "/usr/local/spark/lib/aws-java-sdk-1.7.4.jar:/usr/local/spark/lib/hadoop-aws-2.6.0.jar:/usr/local/spark/lib/gauva-18.0.jar:/usr/local/spark/lib/google-collections-0.8.jar"
 
 	result = os.system("spark-submit --driver-class-path %s --master %s %s %s %s" % (driver_classpath, master_path, spark_code_path, dataurl, self.request.id))
 
+	return {'current': 100, 'total': 100, 'status': 'Task Completed!', 'result': result}
+
+
+@celery.task(bind=True)
+def spark_data_extraction(self, fileinput):
+
+	print fileinput
+	task_id = self.request.id
+	dataurl = fileinput
+	master_path = 'local[*]'
+	project_dir = "scripts/"
+	spark_code_path = project_dir + "transform.py"
+
+	command = "spark-submit --packages com.databricks:spark-csv_2.10:1.1.0 --driver-memory 4g %s %s" % (spark_code_path, dataurl) 
+
+	result = os.system(command)
 	return {'current': 100, 'total': 100, 'status': 'Task Completed!', 'result': result}
